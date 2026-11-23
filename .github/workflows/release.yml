@@ -1,0 +1,28 @@
+# Al subir un tag vX.Y.Z: compila el .exe en Windows y crea el release con el .exe + instalar.ps1.
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Verificar versión = tag
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path reporte_pos.py -Pattern '^APP_VERSION\s*=\s*"([\d.]+)"').Matches[0].Groups[1].Value
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "APP_VERSION ($v) no coincide con el tag ${{ github.ref_name }}" }
+      - run: pip install pyinstaller==6.11.1 reportlab==4.2.5
+      - run: pyinstaller --noconfirm --onefile --windowed --name ReportePOSVendedoras --distpath build/release reporte_pos.py
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Reporte POS Vendedoras ${{ github.ref_name }}
+          files: |
+            build/release/ReportePOSVendedoras.exe
+            instalar.ps1
